@@ -3,7 +3,7 @@ import { RATE_KEYS } from '../lib/db.js';
 import { blank, num } from '../lib/util.js';
 
 const COLS = [
-  ['localPkg', 'Local package\n(80 km / 8 hr)'], ['localHr', 'Local extra\nper hour'], ['localKm', 'Local extra\nper km'],
+  ['localPkg', 'Local package\n(8 hr / 80 km)'], ['localHr', 'Local extra\nper hour'], ['localKm', 'Local extra\nper km'],
   ['airPkg', 'Airport duty\n(4 hr / 40 km)'], ['airHr', 'Airport extra per hour\n(blank = local)'], ['airKm', 'Airport extra per km\n(blank = local)'],
   ['hill', 'Hills charge'], ['outKm', 'Outstation\nper km'], ['driver', 'Driver allowance\nper day (outstation)'],
   ['dayRent', 'Day rent\n(per day)'], ['fuelCostPerKm', 'Fuel cost\n(per km, day rent only)'],
