@@ -47,6 +47,21 @@ test('hills charge is separate, per hill trip', () => {
   assert.equal(calcLine(line({ km: '80', runT: '8:00', hills: '2' }), S).hills, 2000);
 });
 
+test('day rent includes editable fuel cost defaulted from vehicle fuel cost per km', () => {
+  crysta.dayRent = 3000;
+  crysta.fuelCostPerKm = 12;
+  const L = line({ useDayRent: true, dayRentDays: '3', km: '100', fuelCost: '' });
+  const r = calcLine(L, S);
+  assert.equal(r.defaultFuelCost, 1200);
+  assert.equal(r.fuelCost, 1200);
+  assert.equal(r.amount, 10200);
+
+  const overridden = calcLine(line({ useDayRent: true, dayRentDays: '3', km: '100', fuelCost: '1500' }), S);
+  assert.equal(overridden.amount, 10500);
+  crysta.dayRent = '';
+  crysta.fuelCostPerKm = '';
+});
+
 test('half-hour rounding and grace minutes', () => {
   assert.equal(calcLine(line({ km: '80', runT: '9:10' }), { ...S, extraUnitMin: 30 }).extraHrs, 1.5);
   assert.equal(calcLine(line({ km: '80', runT: '8:10' }), { ...S, graceMin: 15 }).extraHrs, 0);

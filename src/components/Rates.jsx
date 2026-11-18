@@ -6,6 +6,7 @@ const COLS = [
   ['localPkg', 'Local package\n(80 km / 8 hr)'], ['localHr', 'Local extra\nper hour'], ['localKm', 'Local extra\nper km'],
   ['airPkg', 'Airport duty\n(4 hr / 40 km)'], ['airHr', 'Airport extra per hour\n(blank = local)'], ['airKm', 'Airport extra per km\n(blank = local)'],
   ['hill', 'Hills charge'], ['outKm', 'Outstation\nper km'], ['driver', 'Driver allowance\nper day (outstation)'],
+  ['dayRent', 'Day rent\n(per day)'], ['fuelCostPerKm', 'Fuel cost\n(per km, day rent only)'],
 ];
 const lines = (t) => t.split('\n').map((x, i) => <span key={i}>{i > 0 && <br />}{x}</span>);
 
@@ -27,7 +28,7 @@ function VehicleRow({ v, onSave, onDelete }) {
     <tr>
       <td><input style={{ minWidth: 170 }} value={row.name} onChange={set('name')} onBlur={commit} /></td>
       {COLS.map(([k]) => (
-        <td key={k} className="num"><input type="number" step="any" value={row[k]} onChange={set(k)} onBlur={commit} /></td>
+        <td key={k} className="num"><input type="number" step="any" value={row[k] ?? ''} onChange={set(k)} onBlur={commit} /></td>
       ))}
       <td><button className="btn small danger" onClick={() => onDelete(v)}>Delete</button></td>
     </tr>
@@ -73,13 +74,14 @@ export default function Rates({ data, actions, toast }) {
           Add a vehicle type, or edit any rate: changes are saved when you click out of a box, and apply to <b>new trips</b> only (saved bills keep the rates they were made with).
           Airport extra per hour / per km: <b>leave blank to use the local rate</b>. Hills charge is added once per hill trip on a bill.
           Outstation is charged per km with a daily minimum, plus driver allowance per day.
+          <b>Day rent</b>: fixed daily charge — enable the "Day rent" switch on a trip to use it instead of the package-based calculation.
         </div>
         <div className="scroll">
           <table className="list">
             <thead><tr><th>Vehicle</th>{COLS.map(([k, t]) => <th key={k}>{lines(t)}</th>)}<th></th></tr></thead>
             <tbody>
               {data.vehicles.map((v) => <VehicleRow key={v.id} v={v} onSave={(n) => run(() => actions.updateVehicle(n), 'Saved')} onDelete={del} />)}
-              {!data.vehicles.length && <tr><td colSpan="11" className="muted" style={{ padding: 16 }}>No vehicles yet. Add one below.</td></tr>}
+              {!data.vehicles.length && <tr><td colSpan="13" className="muted" style={{ padding: 16 }}>No vehicles yet. Add one below.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -3,7 +3,9 @@ import { useDraft } from '../lib/useDraft.js';
 import { clone, download, num, todayISO } from '../lib/util.js';
 
 const CO_FIELDS = [
-  ['name', 'Company name'], ['tagline', 'Line under the name'], ['proprietor', 'Proprietor'], ['mobile', 'Mobile'],
+  ['name', 'Company name'], ['tagline', 'Line under the name'], ['proprietor', 'Proprietor'],
+  ['address', 'Company address'], ['email', 'Company email'],
+  ['mobile', 'Mobile'],
   ['gstin', 'GST reg. no.'], ['category', 'Category'], ['bankName', 'Bank A/c name'], ['bankAcc', 'Current A/c no.'],
   ['ifsc', 'IFSC code'], ['branch', 'Bank branch'], ['signName', 'Signature line: "For ..."'],
 ];

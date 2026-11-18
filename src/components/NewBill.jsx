@@ -4,12 +4,15 @@ import { applyLineChange, billWarnings, blankBill, blankLine, calcBill, rupeesIn
 import { invoiceModel } from '../lib/invoice.js';
 import { buildXlsx } from '../lib/xlsx.js';
 import { blank, clone, download, fmt, num, plain, safeName } from '../lib/util.js';
+import { supabase } from '../lib/supabase.js';
 
 export default function NewBill({ initial, data, actions, toast, onPrint, onNew }) {
   const { settings, vehicles, clients, bills } = data;
   const [bill, setBill] = useState(() => (initial ? clone(initial) : blankBill(settings, vehicles)));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(initial ? `Editing saved bill ${initial.invoiceNo}.` : '');
+  const [zipFile, setZipFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const lastFill = useRef(null);
   const calc = useMemo(() => calcBill(bill, settings), [bill, settings]);
 
@@ -36,6 +39,21 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
     if (window.confirm(`Remove trip ${i + 1}?`)) setBill((b) => ({ ...b, lines: b.lines.filter((_, j) => j !== i) }));
   };
 
+  async function uploadZip(billId) {
+    if (!zipFile) return bill.attachmentUrl || '';
+    setUploading(true);
+    try {
+      const ext = zipFile.name.split('.').pop();
+      const path = `bill-attachments/${billId}.${ext}`;
+      const { error } = await supabase.storage.from('bill-attachments').upload(path, zipFile, { upsert: true });
+      if (error) throw new Error(error.message);
+      const { data: urlData } = supabase.storage.from('bill-attachments').getPublicUrl(path);
+      return urlData.publicUrl;
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function save() {
     const errs = billWarnings(bill);
     if (errs.length) { toast(errs[0]); return null; }
@@ -43,12 +61,22 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
         !window.confirm(`Invoice number ${bill.invoiceNo} already exists. Save anyway as a second bill with the same number?`)) return null;
     setBusy(true);
     try {
-      const saved = await actions.saveBill(bill);
-      setBill(clone(saved));
+      const savedFirst = await actions.saveBill(bill);
+      if (zipFile) {
+        const attachmentUrl = await uploadZip(savedFirst.id);
+        const updated = await actions.saveBill({ ...savedFirst, attachmentUrl });
+        setBill(clone(updated));
+        const t = new Date();
+        setMsg(`Saved invoice ${updated.invoiceNo} at ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}.`);
+        toast(`Saved invoice ${updated.invoiceNo}`);
+        setZipFile(null);
+        return updated;
+      }
+      setBill(clone(savedFirst));
       const t = new Date();
-      setMsg(`Saved invoice ${saved.invoiceNo} at ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}.`);
-      toast(`Saved invoice ${saved.invoiceNo}`);
-      return saved;
+      setMsg(`Saved invoice ${savedFirst.invoiceNo} at ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}.`);
+      toast(`Saved invoice ${savedFirst.invoiceNo}`);
+      return savedFirst;
     } catch (e) {
       toast('Could not save: ' + (e.message || e));
       return null;
@@ -106,6 +134,25 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
             <label>Places of visit<input value={bill.places} onChange={setField('places')} placeholder="e.g. Madurai Airport Transfer" /></label>
             <label>Engaged from (optional)<input value={bill.engaged} onChange={setField('engaged')} placeholder="auto from trip dates" /></label>
           </div>
+          {/* Zip attachment */}
+          <div style={{ marginTop: 12 }}>
+            <label style={{ display: 'block' }}>
+              Attach trip sheets / tolls / misc bills (ZIP, optional)
+              <input
+                type="file"
+                accept=".zip,application/zip,application/x-zip-compressed"
+                style={{ display: 'block', marginTop: 4 }}
+                onChange={(e) => setZipFile(e.target.files[0] || null)}
+              />
+            </label>
+            {bill.attachmentUrl && !zipFile && (
+              <div className="small" style={{ marginTop: 4 }}>
+                Current attachment: <a href={bill.attachmentUrl} target="_blank" rel="noreferrer">Download ZIP</a>
+                {' '}<button className="link danger small" type="button" onClick={() => setBill((b) => ({ ...b, attachmentUrl: '' }))}>Remove</button>
+              </div>
+            )}
+            {zipFile && <div className="small muted" style={{ marginTop: 4 }}>Selected: {zipFile.name} — will be uploaded on save.</div>}
+          </div>
         </div>
 
         {bill.lines.map((L, i) => (
@@ -134,14 +181,14 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
           </table>
           <div className="words">{rupeesInWords(calc.grand)}</div>
           <div className="row">
-            <button className="btn primary" type="button" disabled={busy} onClick={save}>Save bill</button>
-            <button className="btn" type="button" disabled={busy} onClick={saveAndExcel}>Save + Excel</button>
-            <button className="btn" type="button" disabled={busy} onClick={saveAndPrint}>Save + Print / PDF</button>
+            <button className="btn primary" type="button" disabled={busy || uploading} onClick={save}>Save bill</button>
+            <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndExcel}>Save + Excel</button>
+            <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndPrint}>Save + Print / PDF</button>
           </div>
           <div className="row" style={{ marginTop: 8 }}>
             <button className="btn small" type="button" onClick={startNew}>Start a new blank bill</button>
           </div>
-          <div className="small muted" style={{ marginTop: 8 }}>{msg}</div>
+          <div className="small muted" style={{ marginTop: 8 }}>{uploading ? 'Uploading attachment...' : msg}</div>
         </div>
       </div>
     </div>

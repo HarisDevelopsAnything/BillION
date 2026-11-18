@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, DEFAULT_VEHICLES } from './defaults.js';
 import { blank, clone, num } from './util.js';
 
 /* ---------- vehicle row <-> object ---------- */
-const COL = { localPkg: 'local_pkg', localHr: 'local_hr', localKm: 'local_km', airPkg: 'air_pkg', airHr: 'air_hr', airKm: 'air_km', hill: 'hill', outKm: 'out_km', driver: 'driver' };
+const COL = { localPkg: 'local_pkg', localHr: 'local_hr', localKm: 'local_km', airPkg: 'air_pkg', airHr: 'air_hr', airKm: 'air_km', hill: 'hill', outKm: 'out_km', driver: 'driver', dayRent: 'day_rent', fuelCostPerKm: 'fuel_cost_per_km' };
 export const RATE_KEYS = Object.keys(COL);
 
 export const vehFromRow = (r) => {

@@ -2,6 +2,7 @@
 export const DEFAULT_SETTINGS = {
   company: {
     name: 'MARUTHI TRAVELS', tagline: '(Tamilnadu & pondicherry)', proprietor: 'G.MALLIKARANI',
+    address: '', email: '',
     mobile: '', gstin: '', category: 'Rental Services of Road Vehicles',
     bankName: 'MARUTHI TRAVELS', bankAcc: '', ifsc: '', branch: '', signName: 'MARUTHI TRAVELS',
   },
@@ -20,9 +21,9 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const DEFAULT_VEHICLES = [
-  { name: 'SEDAN', localPkg: 2100, localHr: 150, localKm: 13, airPkg: 1000, airHr: '', airKm: '', hill: 800, outKm: 13, driver: 300 },
-  { name: 'INNOVA/ERTIGA', localPkg: 2700, localHr: 200, localKm: 17, airPkg: 1600, airHr: '', airKm: '', hill: 1000, outKm: 17, driver: 400 },
-  { name: 'INNOVA CRYSTA', localPkg: 3400, localHr: 250, localKm: 21, airPkg: 1600, airHr: '', airKm: '', hill: 1000, outKm: 21, driver: 400 },
-  { name: 'HYCROSS', localPkg: 4500, localHr: 350, localKm: 26, airPkg: 2000, airHr: '', airKm: '', hill: 1000, outKm: 26, driver: 400 },
-  { name: 'TEMPO TRAVELLER', localPkg: 4500, localHr: 350, localKm: 24, airPkg: 2000, airHr: '', airKm: '', hill: 1200, outKm: 24, driver: 600 },
+  { name: 'SEDAN', localPkg: 2100, localHr: 150, localKm: 13, airPkg: 1000, airHr: '', airKm: '', hill: 800, outKm: 13, driver: 300, dayRent: '', fuelCostPerKm: '' },
+  { name: 'INNOVA/ERTIGA', localPkg: 2700, localHr: 200, localKm: 17, airPkg: 1600, airHr: '', airKm: '', hill: 1000, outKm: 17, driver: 400, dayRent: '', fuelCostPerKm: '' },
+  { name: 'INNOVA CRYSTA', localPkg: 3400, localHr: 250, localKm: 21, airPkg: 1600, airHr: '', airKm: '', hill: 1000, outKm: 21, driver: 400, dayRent: '', fuelCostPerKm: '' },
+  { name: 'HYCROSS', localPkg: 4500, localHr: 350, localKm: 26, airPkg: 2000, airHr: '', airKm: '', hill: 1000, outKm: 26, driver: 400, dayRent: '', fuelCostPerKm: '' },
+  { name: 'TEMPO TRAVELLER', localPkg: 4500, localHr: 350, localKm: 24, airPkg: 2000, airHr: '', airKm: '', hill: 1200, outKm: 24, driver: 600, dayRent: '', fuelCostPerKm: '' },
 ];

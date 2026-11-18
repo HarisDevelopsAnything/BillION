@@ -17,6 +17,7 @@ create table if not exists public.vehicles (
   local_pkg numeric, local_hr numeric, local_km numeric,
   air_pkg numeric,   air_hr numeric,   air_km numeric,
   hill numeric, out_km numeric, driver numeric,
+  day_rent numeric, fuel_cost_per_km numeric,
   sort integer not null default 0,
   created_at timestamptz not null default now()
 );
@@ -39,6 +40,8 @@ create table if not exists public.bills (
   client_name text not null default '',
   grand_total numeric not null default 0,
   data jsonb not null,
+  -- URL of the optional ZIP attachment stored in Supabase Storage
+  attachment_url text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -58,3 +61,53 @@ create policy "own settings" on public.settings for all to authenticated using (
 create policy "own vehicles" on public.vehicles for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own clients"  on public.clients  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own bills"    on public.bills    for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ============================================================
+-- MIGRATION: run only if the bills table already exists
+-- (safe to run even on a fresh database — the column is in the
+--  CREATE TABLE above, so this is a no-op for new installs).
+-- ============================================================
+alter table public.bills add column if not exists attachment_url text not null default '';
+
+-- ============================================================
+-- MIGRATION: add day_rent column to vehicles (safe on existing DBs)
+-- ============================================================
+alter table public.vehicles add column if not exists day_rent numeric;
+
+-- ============================================================
+-- MIGRATION: add fuel_cost_per_km column to vehicles
+-- ============================================================
+alter table public.vehicles add column if not exists fuel_cost_per_km numeric;
+
+-- ============================================================
+-- Storage bucket for ZIP attachments
+-- ============================================================
+-- 1. Create the bucket (private — only authenticated users can access their own files).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'bill-attachments',
+  'bill-attachments',
+  false,                        -- private bucket
+  52428800,                     -- 50 MB max per file
+  array['application/zip', 'application/x-zip-compressed', 'application/octet-stream']
+)
+on conflict (id) do nothing;
+
+-- 2. RLS policies on storage objects so each user can only touch their own files.
+--    Files are stored as "bill-attachments/<uuid>.<ext>".
+
+drop policy if exists "auth upload attachment"  on storage.objects;
+drop policy if exists "auth read attachment"    on storage.objects;
+drop policy if exists "auth delete attachment"  on storage.objects;
+
+create policy "auth upload attachment"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'bill-attachments' and auth.uid() is not null);
+
+create policy "auth read attachment"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'bill-attachments' and auth.uid() is not null);
+
+create policy "auth delete attachment"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'bill-attachments' and auth.uid() is not null);

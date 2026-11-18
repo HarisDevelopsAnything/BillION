@@ -27,6 +27,9 @@ export function makeSnap(type, vehicle, tt) {
     s = { pkg: num(v.localPkg), xHr: num(v.localHr), xKm: num(v.localKm), incHrs: t.hours, incKm: t.km };
   }
   s.hill = num(v.hill);
+  // Always snapshot the vehicle's day rent rate so saved bills are immutable
+  s.dayRent = blank(v.dayRent) ? '' : num(v.dayRent);
+  s.fuelCostPerKm = blank(v.fuelCostPerKm) ? '' : num(v.fuelCostPerKm);
   return s;
 }
 
@@ -41,9 +44,22 @@ export const fmtRun = (min) => Math.floor(min / 60) + ':' + pad(min % 60);
 
 export function calcLine(L, S) {
   const s = L.snap || {};
-  const r = { kind: L.type, pkg: 0, runMin: 0, extraHrs: 0, extraHrCharge: 0, extraKm: 0, extraKmCharge: 0, amount: 0, hills: 0 };
+  const r = { kind: L.type, pkg: 0, runMin: 0, extraHrs: 0, extraHrCharge: 0, extraKm: 0, extraKmCharge: 0, amount: 0, hills: 0, usingDayRent: false };
   const km = num(L.km);
-  if (L.type === 'outstation') {
+
+  if (L.useDayRent) {
+    // Day-rent mode: fixed daily charge × number of days (works for any trip type)
+    r.usingDayRent = true;
+    const days = Math.max(1, Math.round(num(L.dayRentDays)) || 1);
+    r.dayRentDays = days;
+    // The effective rate is the per-trip editable override, falling back to the snapped rate
+    r.dayRentRate = num(blank(L.dayRentRate) ? s.dayRent : L.dayRentRate);
+    r.dayRentCharge = r2(r.dayRentDays * r.dayRentRate);
+    r.fuelCostPerKm = num(s.fuelCostPerKm);
+    r.defaultFuelCost = r2(km * r.fuelCostPerKm);
+    r.fuelCost = r2(num(blank(L.fuelCost) ? r.defaultFuelCost : L.fuelCost));
+    r.amount = r2(r.dayRentCharge + r.fuelCost);
+  } else if (L.type === 'outstation') {
     r.days = Math.max(1, Math.round(num(L.days)) || 1);
     r.minKm = num(s.kmPerDay) * r.days;
     r.billKm = Math.max(km, r.minKm);
@@ -129,8 +145,12 @@ export function blankLine(prev, vehicles, settings) {
   const vehicle = prev ? prev.vehicle : (vehicles[0] ? vehicles[0].name : '');
   const type = prev ? prev.type : 'local';
   const L = {
-    date: prev ? prev.date : todayISO(), vehicle, type, cabNo: '',
-    startKm: '', endKm: '', km: '', startT: '', endT: '', runT: '', days: '1', hills: '0',
+    vehicle, type, cabNo: '',
+    km: '', startKm: '', endKm: '', startT: '', endT: '', runT: '', days: '1', hills: '0',
+    tripFrom: '', tripTo: '',
+    // day-rent fields
+    useDayRent: false, dayRentRate: '', dayRentDays: '1',
+    fuelCost: '',
   };
   L.snap = makeSnap(type, vehicles.find((v) => v.name === vehicle), settings.tripTypes);
   return L;
@@ -140,6 +160,7 @@ export function blankBill(settings, vehicles) {
     id: null, invoiceNo: String(settings.nextInvoice), date: todayISO(), taxType: settings.defaultTaxType || 'igst',
     client: { name: '', address: '', gstin: '' },
     guest: '', places: '', engaged: '', toll: '', permit: '',
+    attachmentUrl: '',
     lines: [blankLine(null, vehicles, settings)],
   };
 }
@@ -148,9 +169,11 @@ export function applyLineChange(L, key, value, vehicles, settings) {
   const n = { ...L, [key]: value };
   if (key === 'vehicle' || key === 'type') {
     n.snap = makeSnap(n.type, vehicles.find((v) => v.name === n.vehicle), settings.tripTypes);
-  }
-  if (key === 'startKm' || key === 'endKm') {
-    if (!blank(n.startKm) && !blank(n.endKm) && num(n.endKm) >= num(n.startKm)) n.km = plain(num(n.endKm) - num(n.startKm));
+    // When vehicle changes, reset per-trip overrides so they pick up the new vehicle's rates
+    if (key === 'vehicle') {
+      n.dayRentRate = '';
+      n.fuelCost = '';
+    }
   }
   if (key === 'startT' || key === 'endT') {
     if (n.startT && n.endT) {
@@ -160,17 +183,37 @@ export function applyLineChange(L, key, value, vehicles, settings) {
       n.runT = fmtRun(mins);
     }
   }
+  if (key === 'startKm' || key === 'endKm') {
+    if (n.startKm !== '' && n.endKm !== '') {
+      const km = num(n.endKm) - num(n.startKm);
+      if (km >= 0) n.km = String(km);
+    }
+  }
+  if (key === 'km') n.fuelCost = '';
+  // When trip from/to change, auto-sync dayRentDays
+  if (key === 'tripFrom' || key === 'tripTo') {
+    if (n.tripFrom && n.tripTo) {
+      const d1 = new Date(n.tripFrom), d2 = new Date(n.tripTo);
+      const diff = Math.round((d2 - d1) / 86400000);
+      if (!isNaN(diff) && diff >= 0) n.dayRentDays = String(diff + 1);
+    }
+  }
   return n;
 }
 export function lineWarnings(L, vehicles) {
   const w = [];
   const s = L.snap || {};
   if (!L.vehicle || !vehicles.some((v) => v.name === L.vehicle)) w.push('Vehicle not found in Rates.');
-  if (L.type === 'outstation') { if (!num(s.outKm)) w.push('Outstation per-km rate is 0. Set it in Rates.'); }
-  else if (!num(s.pkg)) w.push('Package price is 0. Set it in Rates.');
-  if (blank(L.km)) w.push('Km run not entered.');
-  if (!blank(L.startKm) && !blank(L.endKm) && num(L.endKm) < num(L.startKm)) w.push('End km is less than start km.');
-  if (L.type !== 'outstation' && !L.runT) w.push('Time run not entered, so no extra-hour charge is added.');
+  if (L.useDayRent) {
+    const rate = num(blank(L.dayRentRate) ? s.dayRent : L.dayRentRate);
+    if (!rate) w.push('Day rent rate is 0. Set it in Rates or enter it here.');
+    if (!num(L.dayRentDays)) w.push('Enter number of days for day rent.');
+  } else {
+    if (L.type === 'outstation') { if (!num(s.outKm)) w.push('Outstation per-km rate is 0. Set it in Rates.'); }
+    else if (!num(s.pkg)) w.push('Package price is 0. Set it in Rates.');
+    if (blank(L.km)) w.push('Km run not entered.');
+    if (L.type !== 'outstation' && !L.runT) w.push('Time run not entered, so no extra-hour charge is added.');
+  }
   return w;
 }
 export function billWarnings(b) {
