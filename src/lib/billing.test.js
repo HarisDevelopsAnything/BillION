@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SETTINGS, DEFAULT_VEHICLES } from './defaults.js';
-import { applyLineChange, blankBill, calcBill, calcLine, makeSnap, rupeesInWords } from './billing.js';
+import { applyLineChange, blankBill, calcBill, calcLine, makeSnap, rupeesInWords, stateHint } from './billing.js';
 import { invoiceModel, invoiceHTML } from './invoice.js';
 import { buildXlsx } from './xlsx.js';
 
@@ -88,4 +88,52 @@ test('invoice model, printed HTML and .xlsx are produced', async () => {
   const blob = buildXlsx(m);
   const head = new Uint8Array(await blob.arrayBuffer()).slice(0, 2);
   assert.equal(String.fromCharCode(head[0], head[1]), 'PK');
+});
+
+const sampleBill = (taxType) => {
+  const b = blankBill(S, V);
+  b.lines = [line({ type: 'airport', km: '63', runT: '2:35' }), line({ type: 'airport', date: '2026-09-06', km: '65', runT: '3:30' })];
+  b.toll = '160';
+  if (taxType) b.taxType = taxType;
+  return b;
+};
+
+test('other state: one IGST line (default)', () => {
+  const c = calcBill(sampleBill(), S);
+  assert.equal(c.taxType, 'igst');
+  assert.deepEqual([c.igst, c.cgst, c.sgst, c.tax], [210.4, 0, 0, 210.4]);
+});
+
+test('same state: GST rate split equally into CGST and SGST', () => {
+  const c = calcBill(sampleBill('cgst_sgst'), S);
+  assert.deepEqual([c.igst, c.cgst, c.sgst, c.tax], [0, 105.2, 105.2, 210.4]);
+  assert.equal(c.grand, 4368); // tax is shown, not added (reverse charge), same as IGST
+});
+
+test('when GST is added to the bill, IGST and CGST+SGST give the same grand total', () => {
+  const on = { ...S, addIgst: true };
+  assert.equal(calcBill(sampleBill('igst'), on).grand, 4578.4);
+  assert.equal(calcBill(sampleBill('cgst_sgst'), on).grand, 4578.4);
+});
+
+test('new bills start with the default tax type from settings; old bills without one stay IGST', () => {
+  assert.equal(blankBill({ ...S, defaultTaxType: 'cgst_sgst' }, V).taxType, 'cgst_sgst');
+  const old = sampleBill(); delete old.taxType;
+  assert.equal(calcBill(old, S).taxType, 'igst');
+});
+
+test('printed bill lists CGST and SGST (or IGST) with the right labels', () => {
+  const same = invoiceHTML(invoiceModel(sampleBill('cgst_sgst'), S));
+  assert.match(same, />CGST 2\.5%/); assert.match(same, />SGST 2\.5%/); assert.doesNotMatch(same, />IGST 5%/);
+  const inter = invoiceHTML(invoiceModel(sampleBill('igst'), S));
+  assert.match(inter, />IGST 5%/); assert.doesNotMatch(inter, />CGST 2\.5%/);
+});
+
+test('state-code hint appears only when GST numbers disagree with the chosen tax type', () => {
+  const S2 = { ...S, company: { ...S.company, gstin: '33ABCDE1234F1Z5' } };
+  const b = sampleBill('igst'); b.client = { name: 'X', address: '', gstin: '33XYZ' };
+  assert.match(stateHint(S2, b), /same state/);
+  b.taxType = 'cgst_sgst'; assert.equal(stateHint(S2, b), '');
+  b.client.gstin = '27XYZ'; assert.match(stateHint(S2, b), /different state/);
+  b.client.gstin = ''; assert.equal(stateHint(S2, b), '');
 });

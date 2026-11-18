@@ -140,11 +140,15 @@ export function buildXlsx(m) {
   if (outFirst && outLast >= outFirst) parts.push('SUM(F' + outFirst + ':F' + outLast + ')');
   parts.push('F' + rHills);
   put(r, 6, m.total, 8, parts.join('+')); r++;
-  const rIgst = r; label('IGST ' + plain(m.igstPct) + '%' + (m.igstAdded ? '' : ' (reverse charge, not added)'));
-  put(r, 6, m.igst, 7, 'ROUND(F' + rTotal + '*' + plain(m.igstPct) + '/100,2)'); r++;
+  const taxRows = [];
+  m.taxLines.forEach((t) => {
+    taxRows.push(r); label(t.label);
+    // IGST = total x rate; CGST and SGST are each half the rate
+    put(r, 6, t.amount, 7, 'ROUND(F' + rTotal + '*' + plain(m.rate) + (t.key === 'igst' ? '/100' : '/200') + ',2)'); r++;
+  });
   const rToll = r; label('Toll & Parking'); put(r, 6, m.toll, 7); r++;
   const rPerm = r; label('Other state permit'); put(r, 6, m.permit, 7); r++;
-  label('Grand Total'); put(r, 6, m.grand, 8, 'F' + rTotal + '+F' + rToll + '+F' + rPerm + (m.igstAdded ? '+F' + rIgst : '')); r++;
+  label('Grand Total'); put(r, 6, m.grand, 8, 'F' + rTotal + '+F' + rToll + '+F' + rPerm + (m.taxAdded ? taxRows.map((x) => '+F' + x).join('') : '')); r++;
   span(r, 1, 6, 'Rs.' + fmt(m.grand) + '/- (' + m.words + ')', 5); heights[r] = 22; r++;
   span(r, 1, 6, m.note, 9); heights[r] = 52; r++;
   r++;

@@ -84,3 +84,11 @@ table.list td.num input{text-align:right;min-width:70px}
 .top .who .btn{background:transparent;border-color:#8fa3cf;color:#fff;padding:4px 10px;font-size:12.5px}
 .top .who .btn:hover{background:rgba(255,255,255,.12)}
 button:disabled{opacity:.55;cursor:default}
+
+/* ---------- tax type toggle ---------- */
+.taxrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 12px}
+.taxrow .lbl{font-size:12px;color:var(--mute);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--accent2);border-radius:5px;overflow:hidden}
+.seg button{background:#fff;color:var(--accent2);border:0;padding:7px 14px;cursor:pointer;font-weight:600}
+.seg button+button{border-left:1px solid var(--accent2)}
+.seg button.on{background:var(--accent2);color:#fff}

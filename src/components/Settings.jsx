@@ -7,7 +7,7 @@ const CO_FIELDS = [
   ['gstin', 'GST reg. no.'], ['category', 'Category'], ['bankName', 'Bank A/c name'], ['bankAcc', 'Current A/c no.'],
   ['ifsc', 'IFSC code'], ['branch', 'Bank branch'], ['signName', 'Signature line: "For ..."'],
 ];
-const pick = (s) => clone({ company: s.company, nextInvoice: s.nextInvoice, igstPct: s.igstPct, addIgst: s.addIgst, extraUnitMin: s.extraUnitMin, graceMin: s.graceMin, gstNote: s.gstNote });
+const pick = (s) => clone({ company: s.company, nextInvoice: s.nextInvoice, igstPct: s.igstPct, defaultTaxType: s.defaultTaxType || 'igst', addIgst: s.addIgst, extraUnitMin: s.extraUnitMin, graceMin: s.graceMin, gstNote: s.gstNote });
 
 export default function Settings({ data, actions, toast }) {
   const saved = useMemo(() => pick(data.settings), [data.settings]);
@@ -23,7 +23,7 @@ export default function Settings({ data, actions, toast }) {
       // tripTypes come from the latest saved settings so this form never overwrites the Rates screen
       await actions.saveSettings({
         ...data.settings, company: form.company, gstNote: form.gstNote, addIgst: !!form.addIgst,
-        nextInvoice: num(form.nextInvoice), igstPct: num(form.igstPct), extraUnitMin: num(form.extraUnitMin) || 60, graceMin: num(form.graceMin),
+        nextInvoice: num(form.nextInvoice), igstPct: num(form.igstPct), defaultTaxType: form.defaultTaxType === 'cgst_sgst' ? 'cgst_sgst' : 'igst', extraUnitMin: num(form.extraUnitMin) || 60, graceMin: num(form.graceMin),
       });
       toast('Settings saved');
     } catch (e) { toast('Could not save: ' + (e.message || e)); }
@@ -46,14 +46,17 @@ export default function Settings({ data, actions, toast }) {
         <h2>Billing rules</h2>
         <div className="grid g3">
           <label>Next invoice number<input type="number" value={form.nextInvoice} onChange={setTop('nextInvoice')} /></label>
-          <label>IGST %<input type="number" step="any" value={form.igstPct} onChange={setTop('igstPct')} /></label>
+          <label>GST rate % (IGST, or split equally into CGST + SGST)<input type="number" step="any" value={form.igstPct} onChange={setTop('igstPct')} /></label>
+          <label>Tax type for new bills
+            <select value={form.defaultTaxType} onChange={setTop('defaultTaxType')}><option value="igst">Other state (IGST)</option><option value="cgst_sgst">Same state (CGST + SGST)</option></select>
+          </label>
           <label>Extra time is rounded up to
             <select value={form.extraUnitMin} onChange={setTop('extraUnitMin')}><option value="60">whole hour</option><option value="30">half hour</option></select>
           </label>
           <label>Grace minutes (no extra charge if over by this much or less)<input type="number" value={form.graceMin} onChange={setTop('graceMin')} /></label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20 }}>
             <input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={!!form.addIgst} onChange={(e) => setForm({ ...form, addIgst: e.target.checked })} />
-            Add IGST to the grand total (off = shown only, as on your current bills)
+            Add GST to the grand total (off = shown only, reverse charge, as on your current bills)
           </label>
         </div>
         <div style={{ marginTop: 10 }}>

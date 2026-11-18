@@ -24,7 +24,7 @@ export default function App() {
     return (
       <div className="center"><div className="card" style={{ maxWidth: 520, textAlign: 'left' }}>
         <h2>Not connected to Supabase yet</h2>
-        <p>Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> (see the README), then rebuild.</p>
+        <p>Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> (see the README), then rebuild.</p>
       </div></div>
     );
   }

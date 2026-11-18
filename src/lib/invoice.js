@@ -24,11 +24,16 @@ export function invoiceModel(b, S) {
     }
   });
   dates.sort();
+  const rate = num(S.igstPct);
+  const suffix = S.addIgst ? '' : ' (reverse charge, not added)';
+  const taxLines = calc.taxType === 'cgst_sgst'
+    ? [{ key: 'cgst', label: 'CGST ' + plain(rate / 2) + '%' + suffix, amount: calc.cgst }, { key: 'sgst', label: 'SGST ' + plain(rate / 2) + '%' + suffix, amount: calc.sgst }]
+    : [{ key: 'igst', label: 'IGST ' + plain(rate) + '%' + suffix, amount: calc.igst }];
   return {
     C, invoiceNo: b.invoiceNo, date: fmtDate(b.date), client: b.client || {}, guest: b.guest || '',
     engaged: b.engaged || dates.map(fmtDate).join('&'), places: b.places || '',
     segment: segs.join(', '), cabNos: cabs.join(' & '),
-    prog, out, hills: calc.hills, total: calc.total, igstPct: num(S.igstPct), igst: calc.igst, igstAdded: !!S.addIgst,
+    prog, out, hills: calc.hills, total: calc.total, taxType: calc.taxType, rate, taxLines, taxAdded: !!S.addIgst,
     toll: num(b.toll), permit: num(b.permit), grand: calc.grand, words: rupeesInWords(calc.grand),
     note: S.gstNote, outKmPerDay: S.tripTypes.outstation.kmPerDay,
   };
@@ -67,7 +72,7 @@ export function invoiceHTML(m) {
   const tot = (label, val, bold) => `<tr><td colspan="5" class="r${bold ? ' b' : ''}">${label}</td><td class="r${bold ? ' b' : ''}">${fmt(val)}</td></tr>`;
   h += tot('HILLS CHARGE', m.hills);
   h += tot('Total', m.total, true);
-  h += tot('IGST ' + plain(m.igstPct) + '%' + (m.igstAdded ? '' : ' (reverse charge, not added)'), m.igst);
+  m.taxLines.forEach((t) => { h += tot(t.label, t.amount); });
   h += tot('Toll &amp; Parking', m.toll);
   h += tot('Other state permit', m.permit);
   h += tot('Grand Total', m.grand, true);

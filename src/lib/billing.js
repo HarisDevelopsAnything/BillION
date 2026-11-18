@@ -73,9 +73,26 @@ export function calcBill(b, S) {
   lines.forEach((r) => { if (r.kind === 'outstation') out += r.amount; else prog += r.amount; hills += r.hills; });
   prog = r2(prog); out = r2(out); hills = r2(hills);
   const total = r2(prog + out + hills);
-  const igst = r2((total * num(S.igstPct)) / 100);
-  const grand = r2(total + num(b.toll) + num(b.permit) + (S.addIgst ? igst : 0));
-  return { lines, prog, out, hills, total, igst, grand };
+  // Other state: one IGST line. Same state: the same GST split equally into CGST and SGST.
+  const taxType = b.taxType || S.defaultTaxType || 'igst';
+  const rate = num(S.igstPct);
+  let igst = 0, cgst = 0, sgst = 0;
+  if (taxType === 'cgst_sgst') { cgst = r2((total * rate) / 200); sgst = cgst; }
+  else igst = r2((total * rate) / 100);
+  const tax = r2(igst + cgst + sgst);
+  const grand = r2(total + num(b.toll) + num(b.permit) + (S.addIgst ? tax : 0));
+  return { lines, prog, out, hills, total, taxType, igst, cgst, sgst, tax, grand };
+}
+
+/* A gentle hint if the GST numbers suggest the other tax type (first two digits of a GSTIN = state code). */
+export function stateHint(S, b) {
+  const a = String((S.company && S.company.gstin) || '').trim().slice(0, 2);
+  const c = String((b.client && b.client.gstin) || '').trim().slice(0, 2);
+  if (!/^\d{2}$/.test(a) || !/^\d{2}$/.test(c)) return '';
+  const type = b.taxType || S.defaultTaxType || 'igst';
+  if (a === c && type !== 'cgst_sgst') return `The client's GST number starts with ${c}, the same state as yours, so CGST + SGST usually applies.`;
+  if (a !== c && type === 'cgst_sgst') return `The client's GST number starts with ${c}, a different state from yours (${a}), so IGST usually applies.`;
+  return '';
 }
 
 /* ---------- amount in words (Indian system) ---------- */
@@ -120,7 +137,7 @@ export function blankLine(prev, vehicles, settings) {
 }
 export function blankBill(settings, vehicles) {
   return {
-    id: null, invoiceNo: String(settings.nextInvoice), date: todayISO(),
+    id: null, invoiceNo: String(settings.nextInvoice), date: todayISO(), taxType: settings.defaultTaxType || 'igst',
     client: { name: '', address: '', gstin: '' },
     guest: '', places: '', engaged: '', toll: '', permit: '',
     lines: [blankLine(null, vehicles, settings)],

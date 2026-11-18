@@ -6,7 +6,8 @@ export const DEFAULT_SETTINGS = {
     bankName: 'MARUTHI TRAVELS', bankAcc: '', ifsc: '', branch: '', signName: 'MARUTHI TRAVELS',
   },
   nextInvoice: 314,
-  igstPct: 5,
+  igstPct: 5,            // GST rate: charged as IGST, or split equally into CGST + SGST
+  defaultTaxType: 'igst', // 'igst' (other state) or 'cgst_sgst' (same state) for new bills
   addIgst: false,
   extraUnitMin: 60,
   graceMin: 0,

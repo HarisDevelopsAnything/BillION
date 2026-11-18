@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import LineCard from './LineCard.jsx';
-import { applyLineChange, billWarnings, blankBill, blankLine, calcBill, rupeesInWords } from '../lib/billing.js';
+import { applyLineChange, billWarnings, blankBill, blankLine, calcBill, rupeesInWords, stateHint } from '../lib/billing.js';
 import { invoiceModel } from '../lib/invoice.js';
 import { buildXlsx } from '../lib/xlsx.js';
-import { blank, clone, download, fmt, plain, safeName } from '../lib/util.js';
+import { blank, clone, download, fmt, num, plain, safeName } from '../lib/util.js';
 
 export default function NewBill({ initial, data, actions, toast, onPrint, onNew }) {
   const { settings, vehicles, clients, bills } = data;
@@ -70,6 +70,12 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
   }
 
   const client = bill.client || { name: '', address: '', gstin: '' };
+  const rate = num(settings.igstPct);
+  const taxRows = calc.taxType === 'cgst_sgst'
+    ? [['CGST ' + plain(rate / 2) + '%', calc.cgst], ['SGST ' + plain(rate / 2) + '%', calc.sgst]]
+    : [['IGST ' + plain(rate) + '%', calc.igst]];
+  const hint = stateHint(settings, bill);
+  const setTax = (t) => setBill((b) => ({ ...b, taxType: t }));
   return (
     <div className="cols">
       <div>
@@ -86,6 +92,14 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
           <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', margin: '10px 0' }}>
             <label>Client address<input value={client.address} onChange={(e) => setClientField('address', e.target.value)} /></label>
             <label>Client GST no.<input value={client.gstin} onChange={(e) => setClientField('gstin', e.target.value)} /></label>
+          </div>
+          <div className="taxrow">
+            <span className="lbl">Tax on this bill</span>
+            <div className="seg" role="group" aria-label="Tax type">
+              <button type="button" className={calc.taxType === 'igst' ? 'on' : ''} onClick={() => setTax('igst')}>Other state (IGST)</button>
+              <button type="button" className={calc.taxType === 'cgst_sgst' ? 'on' : ''} onClick={() => setTax('cgst_sgst')}>Same state (CGST + SGST)</button>
+            </div>
+            {hint && <span className="small" style={{ color: 'var(--warn)' }}>{hint}</span>}
           </div>
           <div className="grid g3">
             <label>Guest name<input value={bill.guest} onChange={setField('guest')} placeholder="e.g. Dr. Veerapandian" /></label>
@@ -110,7 +124,9 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
               {calc.out > 0 && <tr><td>Outstation total</td><td>Rs. {fmt(calc.out)}</td></tr>}
               <tr><td>Hills charge</td><td>Rs. {fmt(calc.hills)}</td></tr>
               <tr><td><b>Total</b></td><td style={{ fontWeight: 700 }}>Rs. {fmt(calc.total)}</td></tr>
-              <tr className="muted"><td>IGST {plain(settings.igstPct)}%{settings.addIgst ? '' : ' (shown, not added)'}</td><td>Rs. {fmt(calc.igst)}</td></tr>
+              {taxRows.map(([label, amt]) => (
+                <tr className="muted" key={label}><td>{label}{settings.addIgst ? '' : ' (shown, not added)'}</td><td>Rs. {fmt(amt)}</td></tr>
+              ))}
               <tr><td>Toll &amp; Parking</td><td><input type="number" value={bill.toll} onChange={setField('toll')} /></td></tr>
               <tr><td>Other state permit</td><td><input type="number" value={bill.permit} onChange={setField('permit')} /></td></tr>
               <tr className="grand"><td>Grand total</td><td>Rs. {fmt(calc.grand)}</td></tr>
