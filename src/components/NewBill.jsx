@@ -1,0 +1,133 @@
+import { useMemo, useRef, useState } from 'react';
+import LineCard from './LineCard.jsx';
+import { applyLineChange, billWarnings, blankBill, blankLine, calcBill, rupeesInWords } from '../lib/billing.js';
+import { invoiceModel } from '../lib/invoice.js';
+import { buildXlsx } from '../lib/xlsx.js';
+import { blank, clone, download, fmt, plain, safeName } from '../lib/util.js';
+
+export default function NewBill({ initial, data, actions, toast, onPrint, onNew }) {
+  const { settings, vehicles, clients, bills } = data;
+  const [bill, setBill] = useState(() => (initial ? clone(initial) : blankBill(settings, vehicles)));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(initial ? `Editing saved bill ${initial.invoiceNo}.` : '');
+  const lastFill = useRef(null);
+  const calc = useMemo(() => calcBill(bill, settings), [bill, settings]);
+
+  const setField = (k) => (e) => setBill((b) => ({ ...b, [k]: e.target.value }));
+
+  function setClientField(k, v) {
+    const client = { ...(bill.client || { name: '', address: '', gstin: '' }), [k]: v };
+    if (k === 'name' && v.trim()) {
+      const c = clients.find((x) => x.name.trim().toLowerCase() === v.trim().toLowerCase());
+      const untouched = (!client.address && !client.gstin) ||
+        (lastFill.current && client.address === lastFill.current.address && client.gstin === lastFill.current.gstin);
+      if (c && untouched) {
+        client.address = c.address || ''; client.gstin = c.gstin || '';
+        lastFill.current = { address: client.address, gstin: client.gstin };
+      }
+    }
+    setBill({ ...bill, client });
+  }
+
+  const changeLine = (i) => (key, value) =>
+    setBill((b) => ({ ...b, lines: b.lines.map((L, j) => (j === i ? applyLineChange(L, key, value, vehicles, settings) : L)) }));
+  const addLine = () => setBill((b) => ({ ...b, lines: [...b.lines, blankLine(b.lines[b.lines.length - 1], vehicles, settings)] }));
+  const removeLine = (i) => {
+    if (window.confirm(`Remove trip ${i + 1}?`)) setBill((b) => ({ ...b, lines: b.lines.filter((_, j) => j !== i) }));
+  };
+
+  async function save() {
+    const errs = billWarnings(bill);
+    if (errs.length) { toast(errs[0]); return null; }
+    if (!bill.id && bills.some((b) => String(b.invoiceNo) === String(bill.invoiceNo)) &&
+        !window.confirm(`Invoice number ${bill.invoiceNo} already exists. Save anyway as a second bill with the same number?`)) return null;
+    setBusy(true);
+    try {
+      const saved = await actions.saveBill(bill);
+      setBill(clone(saved));
+      const t = new Date();
+      setMsg(`Saved invoice ${saved.invoiceNo} at ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}.`);
+      toast(`Saved invoice ${saved.invoiceNo}`);
+      return saved;
+    } catch (e) {
+      toast('Could not save: ' + (e.message || e));
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveAndExcel() {
+    const saved = await save();
+    if (saved) download(buildXlsx(invoiceModel(saved, settings)), `Invoice_${safeName(saved.invoiceNo)}_${safeName(saved.client.name)}.xlsx`);
+  }
+  async function saveAndPrint() {
+    const saved = await save();
+    if (saved) onPrint(saved);
+  }
+  function startNew() {
+    if (!bill.id && bill.lines.some((L) => !blank(L.km)) && !window.confirm('The current bill is not saved. Discard it and start a new one?')) return;
+    onNew();
+  }
+
+  const client = bill.client || { name: '', address: '', gstin: '' };
+  return (
+    <div className="cols">
+      <div>
+        <div className="card">
+          <h2>Bill details</h2>
+          <div className="grid g3">
+            <label>Invoice no.<input value={bill.invoiceNo} onChange={setField('invoiceNo')} /></label>
+            <label>Invoice date<input type="date" value={bill.date} onChange={setField('date')} /></label>
+            <label>Client name
+              <input list="clientDL" autoComplete="off" value={client.name} onChange={(e) => setClientField('name', e.target.value)} placeholder="type a name, or pick a saved client" />
+              <datalist id="clientDL">{clients.map((c) => <option key={c.id} value={c.name} />)}</datalist>
+            </label>
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', margin: '10px 0' }}>
+            <label>Client address<input value={client.address} onChange={(e) => setClientField('address', e.target.value)} /></label>
+            <label>Client GST no.<input value={client.gstin} onChange={(e) => setClientField('gstin', e.target.value)} /></label>
+          </div>
+          <div className="grid g3">
+            <label>Guest name<input value={bill.guest} onChange={setField('guest')} placeholder="e.g. Dr. Veerapandian" /></label>
+            <label>Places of visit<input value={bill.places} onChange={setField('places')} placeholder="e.g. Madurai Airport Transfer" /></label>
+            <label>Engaged from (optional)<input value={bill.engaged} onChange={setField('engaged')} placeholder="auto from trip dates" /></label>
+          </div>
+        </div>
+
+        {bill.lines.map((L, i) => (
+          <LineCard key={i} L={L} i={i} count={bill.lines.length} vehicles={vehicles} settings={settings}
+            calc={calc.lines[i]} onChange={changeLine(i)} onRemove={() => removeLine(i)} />
+        ))}
+        <button className="btn" type="button" onClick={addLine}>+ Add another trip</button>
+      </div>
+
+      <div className="sticky">
+        <div className="card sum">
+          <h2>Bill summary</h2>
+          <table>
+            <tbody>
+              <tr><td>Trips total</td><td>Rs. {fmt(calc.prog)}</td></tr>
+              {calc.out > 0 && <tr><td>Outstation total</td><td>Rs. {fmt(calc.out)}</td></tr>}
+              <tr><td>Hills charge</td><td>Rs. {fmt(calc.hills)}</td></tr>
+              <tr><td><b>Total</b></td><td style={{ fontWeight: 700 }}>Rs. {fmt(calc.total)}</td></tr>
+              <tr className="muted"><td>IGST {plain(settings.igstPct)}%{settings.addIgst ? '' : ' (shown, not added)'}</td><td>Rs. {fmt(calc.igst)}</td></tr>
+              <tr><td>Toll &amp; Parking</td><td><input type="number" value={bill.toll} onChange={setField('toll')} /></td></tr>
+              <tr><td>Other state permit</td><td><input type="number" value={bill.permit} onChange={setField('permit')} /></td></tr>
+              <tr className="grand"><td>Grand total</td><td>Rs. {fmt(calc.grand)}</td></tr>
+            </tbody>
+          </table>
+          <div className="words">{rupeesInWords(calc.grand)}</div>
+          <div className="row">
+            <button className="btn primary" type="button" disabled={busy} onClick={save}>Save bill</button>
+            <button className="btn" type="button" disabled={busy} onClick={saveAndExcel}>Save + Excel</button>
+            <button className="btn" type="button" disabled={busy} onClick={saveAndPrint}>Save + Print / PDF</button>
+          </div>
+          <div className="row" style={{ marginTop: 8 }}>
+            <button className="btn small" type="button" onClick={startNew}>Start a new blank bill</button>
+          </div>
+          <div className="small muted" style={{ marginTop: 8 }}>{msg}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
