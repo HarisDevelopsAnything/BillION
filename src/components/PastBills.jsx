@@ -138,7 +138,7 @@ export default function PastBills({ data, actions, toast, onOpen, onPrint }) {
       </div>
 
       {/* Bulk download by invoice number range */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: 'var(--bg2, #f5f7fa)', borderRadius: 6, border: '1px solid var(--line)' }}>
+      <div className="download-range">
         <span className="small" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Download range:</span>
         <label className="small" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           From invoice&nbsp;

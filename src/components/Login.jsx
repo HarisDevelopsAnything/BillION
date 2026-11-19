@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 
 export default function Login() {
@@ -9,6 +9,13 @@ export default function Login() {
   const [typedText, setTypedText] = useState('');
   const [loginStatus, setLoginStatus] = useState('idle');
   const [slideOut, setSlideOut] = useState(false);
+  const statusTimerRef = useRef(null);
+  const slideTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    window.clearTimeout(statusTimerRef.current);
+    window.clearTimeout(slideTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const useCases = [
@@ -57,18 +64,20 @@ export default function Login() {
 
   async function submit(e) {
     e.preventDefault();
+    window.clearTimeout(statusTimerRef.current);
+    window.clearTimeout(slideTimerRef.current);
     setBusy(true); setError(''); setLoginStatus('idle');
     const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (err) {
       setError(err.message === 'Invalid login credentials' ? 'Wrong email or password.' : err.message);
       setLoginStatus('error');
       setBusy(false);
-      window.setTimeout(() => setLoginStatus((status) => status === 'error' ? 'idle' : status), 1800);
+      statusTimerRef.current = window.setTimeout(() => setLoginStatus('idle'), 1800);
       return;
     }
     setLoginStatus('success');
     setBusy(false);
-    window.setTimeout(() => setSlideOut(true), 450);
+    slideTimerRef.current = window.setTimeout(() => setSlideOut(true), 450);
   }
 
   return (
@@ -100,9 +109,11 @@ export default function Login() {
         <div className="login-use-case">
           <span className={`login-use-case-label login-status-label ${loginStatus !== 'idle' ? 'hidden' : ''}`}>With BillION, you can</span>
           <div className={`typewriter ${loginStatus !== 'idle' ? 'hidden' : ''}`}><span>{typedText}</span><span className="typewriter-cursor" aria-hidden="true" /></div>
-          <div className={`login-status-text ${loginStatus === 'error' ? 'visible error' : loginStatus === 'success' ? 'visible success' : ''}`}>
-            {loginStatus === 'error' ? 'Login Failed' : 'Login Success'}
-          </div>
+          {loginStatus !== 'idle' && (
+            <div className={`login-status-text visible ${loginStatus}`}>
+              {loginStatus === 'error' ? 'Login Failed' : 'Login Success'}
+            </div>
+          )}
         </div>
       </div>
     </div>

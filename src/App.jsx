@@ -24,6 +24,12 @@ function TabIcon({ tab }) {
 export default function App() {
   const [session, setSession] = useState(undefined);
   useLayoutEffect(() => {
+    let theme = 'light';
+    try {
+      theme = localStorage.getItem('billion-theme');
+      if (!theme) theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch {}
+    document.documentElement.dataset.theme = theme;
     if (!configured) { setSession(null); return undefined; }
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -52,6 +58,7 @@ export default function App() {
 function Main({ session }) {
   const data = useData(session.user.id);
   const [tab, setTab] = useState('new');
+  const [darkMode, setDarkMode] = useState(() => document.documentElement.dataset.theme === 'dark');
   const desktopNavRef = useRef(null);
   const mobileNavRef = useRef(null);
   const [draft, setDraft] = useState(null);
@@ -124,6 +131,12 @@ function Main({ session }) {
   };
 
   const ready = !data.loading && !data.error && data.settings;
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.dataset.theme = next ? 'dark' : 'light';
+    try { localStorage.setItem('billion-theme', next ? 'dark' : 'light'); } catch {}
+  };
   return (
     <>
       <div className="app">
@@ -141,7 +154,17 @@ function Main({ session }) {
               </button>
             ))}
           </nav>
-          <div className="who"><button className="sign-out" onClick={() => setSignOutOpen(true)}>Sign out</button></div>
+          <div className="who">
+            <button className={`theme-toggle${darkMode ? ' dark' : ''}`} type="button" onClick={toggleDarkMode} aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} aria-pressed={darkMode}>
+              <span className="theme-icon theme-sun" aria-hidden="true">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></svg>
+              </span>
+              <span className="theme-icon theme-moon" aria-hidden="true">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 15.3A9 9 0 0 1 8.7 4a9 9 0 1 0 11.3 11.3Z" /></svg>
+              </span>
+            </button>
+            <button className="sign-out" onClick={() => setSignOutOpen(true)}>Sign out</button>
+          </div>
         </header>
         <main>
           {data.loading && <div className="center muted">Loading your data...</div>}
