@@ -5,6 +5,7 @@ import { invoiceModel } from '../lib/invoice.js';
 import { buildXlsx } from '../lib/xlsx.js';
 import { blank, clone, download, fmt, num, plain, safeName } from '../lib/util.js';
 import { supabase } from '../lib/supabase.js';
+import SaveSuccess from './SaveSuccess.jsx';
 
 export default function NewBill({ initial, data, actions, toast, onPrint, onNew }) {
   const { settings, vehicles, clients, bills } = data;
@@ -13,6 +14,7 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
   const [msg, setMsg] = useState(initial ? `Editing saved bill ${initial.invoiceNo}.` : '');
   const [zipFile, setZipFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(null);
   const lastFill = useRef(null);
   const calc = useMemo(() => calcBill(bill, settings), [bill, settings]);
 
@@ -70,12 +72,14 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
         setMsg(`Saved invoice ${updated.invoiceNo} at ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}.`);
         toast(`Saved invoice ${updated.invoiceNo}`);
         setZipFile(null);
+        setSaveSuccess(updated.invoiceNo);
         return updated;
       }
       setBill(clone(savedFirst));
       const t = new Date();
       setMsg(`Saved invoice ${savedFirst.invoiceNo} at ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}.`);
       toast(`Saved invoice ${savedFirst.invoiceNo}`);
+      setSaveSuccess(savedFirst.invoiceNo);
       return savedFirst;
     } catch (e) {
       toast('Could not save: ' + (e.message || e));
@@ -105,6 +109,8 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
   const hint = stateHint(settings, bill);
   const setTax = (t) => setBill((b) => ({ ...b, taxType: t }));
   return (
+    <>
+    <SaveSuccess open={Boolean(saveSuccess)} invoiceNo={saveSuccess} onDone={() => setSaveSuccess(null)} />
     <div className="cols">
       <div>
         <div className="card">
@@ -192,5 +198,6 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
         </div>
       </div>
     </div>
+    </>
   );
 }

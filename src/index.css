@@ -179,6 +179,17 @@ table.list td.num input{text-align:right;min-width:70px}
 .release-close{width:100%;height:44px;border:1px solid rgba(47,85,151,.22);border-radius:13px;background:linear-gradient(135deg,#2f5597,#1f3864);color:#fff;font-weight:800;cursor:pointer;box-shadow:0 9px 20px rgba(31,56,100,.18),inset 0 1px 0 rgba(255,255,255,.16)}
 .release-close:hover{background:linear-gradient(135deg,#3d68ad,#274981)}
 button:disabled{opacity:.55;cursor:default}
+.save-success-backdrop{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.28);-webkit-backdrop-filter:blur(12px) saturate(140%);backdrop-filter:blur(12px) saturate(140%);animation:save-backdrop-in .25s ease-out}
+.save-success-card{width:min(300px,calc(100vw - 40px));height:260px;border:1px solid rgba(255,255,255,.76);border-radius:28px;background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(238,244,250,.86));box-shadow:0 24px 64px rgba(15,23,42,.28),inset 0 1px 0 #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);animation:save-card-in .5s cubic-bezier(.34,1.56,.64,1)}
+.save-success-animation{width:180px;height:180px;flex:none}
+.save-success-text{margin-top:-18px;font-size:21px;font-weight:800;color:#166534}
+.save-success-invoice{margin-top:3px;font-size:12.5px;font-weight:700;color:#6b7280}
+@keyframes save-backdrop-in{from{opacity:0}to{opacity:1}}
+@keyframes save-card-in{from{opacity:0;transform:scale(.88) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.save-success-backdrop.closing{animation:save-backdrop-out .3s ease-in forwards}
+.save-success-backdrop.closing .save-success-card{animation:save-card-out .3s ease-in forwards}
+@keyframes save-backdrop-out{from{opacity:1}to{opacity:0}}
+@keyframes save-card-out{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(.94) translateY(8px)}}
 
 /* ---------- tax type toggle ---------- */
 .taxrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 12px}
