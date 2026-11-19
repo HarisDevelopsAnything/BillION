@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 
-export default function Login() {
+export default function Login({ entering = false }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -9,6 +9,7 @@ export default function Login() {
   const [typedText, setTypedText] = useState('');
   const [loginStatus, setLoginStatus] = useState('idle');
   const [slideOut, setSlideOut] = useState(false);
+  const [slideIn, setSlideIn] = useState(entering);
   const statusTimerRef = useRef(null);
   const slideTimerRef = useRef(null);
 
@@ -16,6 +17,14 @@ export default function Login() {
     window.clearTimeout(statusTimerRef.current);
     window.clearTimeout(slideTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!entering) return undefined;
+    const firstFrame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setSlideIn(false));
+    });
+    return () => window.cancelAnimationFrame(firstFrame);
+  }, [entering]);
 
   useEffect(() => {
     const useCases = [
@@ -81,7 +90,7 @@ export default function Login() {
   }
 
   return (
-    <div className={`login login-${loginStatus}${slideOut ? ' login-sliding' : ''}`}>
+    <div className={`login login-${loginStatus}${slideOut ? ' login-sliding' : ''}${slideIn ? ' login-entering' : ''}`}>
       <div className="panel" id="login-left-panel">
         <div className="login-brand">
           <h1>BillION</h1>

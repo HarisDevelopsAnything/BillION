@@ -35,6 +35,8 @@ export default function App() {
     const { data } = supabase.auth.onAuthStateChange((_event, s) => {
       if (_event === 'SIGNED_IN') {
         window.setTimeout(() => setSession(s), 1450);
+      } else if (_event === 'SIGNED_OUT') {
+        window.setTimeout(() => setSession(s), 300);
       } else {
         setSession(s);
       }
@@ -51,7 +53,7 @@ export default function App() {
     );
   }
   if (session === undefined) return <div className="center muted">Loading...</div>;
-  if (!session) return <Login />;
+  if (!session) return <Login entering />;
   return <Main session={session} />;
 }
 
@@ -127,6 +129,7 @@ function Main({ session }) {
 
   const confirmSignOut = async () => {
     setSigningOut(true);
+    setSignOutOpen(false);
     await supabase.auth.signOut();
   };
 
@@ -139,7 +142,7 @@ function Main({ session }) {
   };
   return (
     <>
-      <div className="app">
+      <div className={`app${signingOut ? ' signing-out' : ''}`}>
         <header className="top">
           <div className="brand">
             <h1>BillION</h1>

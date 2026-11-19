@@ -147,6 +147,10 @@ table.list td.num input{text-align:right;min-width:70px}
 .login-error .login-status-error,.login-success .login-status-success{opacity:1}
 .login-sliding #login-left-panel{transform:translateX(-105%)}
 .login-sliding #login-right-panel{transform:translateX(105%)}
+.login-entering #login-left-panel{transform:translateX(-105%)}
+.login-entering #login-right-panel{transform:translateX(105%)}
+.app.signing-out{animation:app-sign-out-fade .3s ease-in forwards}
+@keyframes app-sign-out-fade{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.985)}}
 #login-right-panel::before,#login-right-panel::after{content:'';position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.12)}
 #login-right-panel::before{width:420px;height:420px;right:-180px;top:-170px}
 #login-right-panel::after{width:280px;height:280px;left:-130px;bottom:-120px}
