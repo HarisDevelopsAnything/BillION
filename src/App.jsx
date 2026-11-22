@@ -205,15 +205,14 @@ function Main({ session }) {
       <div id="print-area" dangerouslySetInnerHTML={{ __html: printHtml }} />
       <div id="toast" className={toastMsg ? 'on' : ''}>{toastMsg}</div>
       <NewRelease
-        version="1.2"
-        title="A smoother BillION"
-        summary="This update improves the interface and mobile experience across the app."
+        version="1.3"
+        title="Attachments made easier"
+        summary="Bills and supporting documents can now be downloaded together."
         features={[
-          'Liquid-glass desktop and mobile navigation',
-          'Animated and bouncy tab selection',
-          'Improved mobile usability with a floating bottom tab bar',
-          'Updated BillION branding and sign-in details',
-          'Custom blurred sign-out confirmation',
+          'Download a saved bill and its ZIP attachment together',
+          'Save a new bill and download its Excel bill plus attachment as one ZIP',
+          'Range downloads include attachments in separate invoice folders',
+          'Clearer attachment storage setup and error messages',
         ]}
         storageScope={session.user.id}
       />

@@ -4,6 +4,7 @@ import { applyLineChange, billWarnings, blankBill, blankLine, calcBill, rupeesIn
 import { invoiceModel } from '../lib/invoice.js';
 import { buildXlsx } from '../lib/xlsx.js';
 import { blank, clone, download, fmt, num, plain, safeName } from '../lib/util.js';
+import { attachmentName, createZip } from '../lib/zip.js';
 import { supabase } from '../lib/supabase.js';
 import SaveSuccess from './SaveSuccess.jsx';
 
@@ -45,10 +46,16 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
     if (!zipFile) return bill.attachmentUrl || '';
     setUploading(true);
     try {
+      if (!supabase) throw new Error('Supabase is not configured.');
       const ext = zipFile.name.split('.').pop();
       const path = `bill-attachments/${billId}.${ext}`;
       const { error } = await supabase.storage.from('bill-attachments').upload(path, zipFile, { upsert: true });
-      if (error) throw new Error(error.message);
+      if (error) {
+        if (/bucket.*not found/i.test(error.message)) {
+          throw new Error('Attachment storage bucket is missing. Run supabase/schema.sql in the Supabase SQL Editor, then try again.');
+        }
+        throw new Error(error.message);
+      }
       const { data: urlData } = supabase.storage.from('bill-attachments').getPublicUrl(path);
       return urlData.publicUrl;
     } finally {
@@ -91,6 +98,30 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
   async function saveAndExcel() {
     const saved = await save();
     if (saved) download(buildXlsx(invoiceModel(saved, settings)), `Invoice_${safeName(saved.invoiceNo)}_${safeName(saved.client.name)}.xlsx`);
+  }
+  async function saveAndZip() {
+    const saved = await save();
+    if (!saved) return;
+    if (!saved.attachmentUrl) {
+      download(buildXlsx(invoiceModel(saved, settings)), `Invoice_${safeName(saved.invoiceNo)}_${safeName(saved.client.name)}.xlsx`);
+      return;
+    }
+    try {
+      setBusy(true);
+      const response = await fetch(saved.attachmentUrl);
+      if (!response.ok) throw new Error(`Could not download attachment (${response.status}).`);
+      const billName = `Invoice_${safeName(saved.invoiceNo)}_${safeName(saved.client.name)}.xlsx`;
+      const zip = await createZip([
+        { name: billName, data: buildXlsx(invoiceModel(saved, settings)) },
+        { name: attachmentName(saved.attachmentUrl), data: await response.blob() },
+      ]);
+      download(zip, `Invoice_${safeName(saved.invoiceNo)}_${safeName(saved.client.name)}_with_attachments.zip`);
+      toast(`Downloaded invoice ${saved.invoiceNo} with attachments`);
+    } catch (e) {
+      toast('Could not download ZIP: ' + (e.message || e));
+    } finally {
+      setBusy(false);
+    }
   }
   async function saveAndPrint() {
     const saved = await save();
@@ -189,6 +220,9 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
           <div className="row">
             <button className="btn primary" type="button" disabled={busy || uploading} onClick={save}>Save bill</button>
             <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndExcel}>Save + Excel</button>
+            {(zipFile || bill.attachmentUrl) && (
+              <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndZip}>Save + ZIP</button>
+            )}
             <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndPrint}>Save + Print / PDF</button>
           </div>
           <div className="row" style={{ marginTop: 8 }}>

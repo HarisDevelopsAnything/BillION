@@ -82,16 +82,22 @@ alter table public.vehicles add column if not exists fuel_cost_per_km numeric;
 -- ============================================================
 -- Storage bucket for ZIP attachments
 -- ============================================================
--- 1. Create the bucket (private — only authenticated users can access their own files).
+-- 1. Create the bucket. It is public because the app stores getPublicUrl()
+--    URLs for saved attachments. Rerunning this migration also repairs a
+--    previously-created private bucket.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'bill-attachments',
   'bill-attachments',
-  false,                        -- private bucket
+  true,
   52428800,                     -- 50 MB max per file
   array['application/zip', 'application/x-zip-compressed', 'application/octet-stream']
 )
-on conflict (id) do nothing;
+on conflict (id) do update set
+  name = excluded.name,
+  public = true,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 -- 2. RLS policies on storage objects so each user can only touch their own files.
 --    Files are stored as "bill-attachments/<uuid>.<ext>".
