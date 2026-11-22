@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SETTINGS, DEFAULT_VEHICLES } from './defaults.js';
-import { applyLineChange, blankBill, calcBill, calcLine, formatTime12, makeSnap, parseTime12, rupeesInWords, stateHint } from './billing.js';
+import { applyLineChange, blankBill, blankLine, calcBill, calcLine, formatTime12, makeSnap, parseTime12, rupeesInWords, stateHint } from './billing.js';
 import { invoiceModel, invoiceHTML } from './invoice.js';
 import { buildXlsx } from './xlsx.js';
 
@@ -41,6 +41,19 @@ test('airport extra hr / km follow the local rates', () => {
 test('outstation: daily minimum km, driver allowance per day', () => {
   assert.equal(calcLine(line({ type: 'outstation', days: '2', km: '500' }), S).amount, 600 * 21 + 800);
   assert.equal(calcLine(line({ type: 'outstation', days: '2', km: '700' }), S).amount, 700 * 21 + 800);
+});
+
+test('outstation: driver allowance is editable per trip', () => {
+  const r = calcLine(line({ type: 'outstation', days: '2', km: '500', driverAllowance: '500' }), S);
+  assert.equal(r.driverRate, 500);
+  assert.equal(r.driver, 1000);
+  assert.equal(r.amount, 600 * 21 + 1000);
+});
+
+test('new trip lines start with the vehicle driver allowance from the database rates', () => {
+  let L = blankLine(null, V, S);
+  L = applyLineChange(L, 'type', 'outstation', V, S);
+  assert.equal(L.driverAllowance, '300');
 });
 
 test('hills charge is separate, per hill trip', () => {

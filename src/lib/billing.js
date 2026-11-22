@@ -84,7 +84,8 @@ export function calcLine(L, S) {
     r.minKm = num(s.kmPerDay) * r.days;
     r.billKm = Math.max(km, r.minKm);
     r.kmCharge = r2(r.billKm * num(s.outKm));
-    r.driver = r2(r.days * num(s.driver));
+    r.driverRate = num(blank(L.driverAllowance) ? s.driver : L.driverAllowance);
+    r.driver = r2(r.days * r.driverRate);
     r.amount = r2(r.kmCharge + r.driver);
   } else {
     r.pkg = num(s.pkg);
@@ -168,11 +169,13 @@ export function blankLine(prev, vehicles, settings) {
     vehicle, type, cabNo: '',
     km: '', startKm: '', endKm: '', startT: '', endT: '', runT: '', days: '1', hills: '0',
     tripFrom: '', tripTo: '',
+    driverAllowance: '',
     // day-rent fields
     useDayRent: false, dayRentRate: '', dayRentDays: '1',
     fuelCost: '',
   };
   L.snap = makeSnap(type, vehicles.find((v) => v.name === vehicle), settings.tripTypes);
+  L.driverAllowance = blank(L.snap.driver) ? '' : String(L.snap.driver);
   return L;
 }
 export function blankBill(settings, vehicles) {
@@ -189,10 +192,11 @@ export function applyLineChange(L, key, value, vehicles, settings) {
   const n = { ...L, [key]: value };
   if (key === 'vehicle' || key === 'type') {
     n.snap = makeSnap(n.type, vehicles.find((v) => v.name === n.vehicle), settings.tripTypes);
-    // When vehicle changes, reset per-trip overrides so they pick up the new vehicle's rates
-    if (key === 'vehicle') {
+    // When vehicle or trip type changes, reset per-trip overrides so they pick up the new defaults
+    if (key === 'vehicle' || key === 'type') {
       n.dayRentRate = '';
       n.fuelCost = '';
+      n.driverAllowance = blank(n.snap.driver) ? '' : String(n.snap.driver);
     }
   }
   if (key === 'startT' || key === 'endT') {

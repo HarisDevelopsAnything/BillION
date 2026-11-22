@@ -77,6 +77,9 @@ export default function LineCard({ L, i, count, vehicles, settings, calc: r, onC
   const effectiveFuelCost = blank(L.fuelCost)
     ? (blank(s.fuelCostPerKm) ? '' : String(r.defaultFuelCost))
     : L.fuelCost;
+  const effectiveDriverAllowance = blank(L.driverAllowance)
+    ? (blank(s.driver) ? '' : String(s.driver))
+    : L.driverAllowance;
 
   return (
     <div className="line">
@@ -100,6 +103,20 @@ export default function LineCard({ L, i, count, vehicles, settings, calc: r, onC
       <div className="grid g4" style={{ marginTop: 10, alignItems: 'end' }}>
         <label>Trip from<input type="date" value={L.tripFrom || ''} onChange={set('tripFrom')} /></label>
         <label>Trip to<input type="date" value={L.tripTo || ''} onChange={set('tripTo')} /></label>
+        {L.type === 'outstation' && (
+          <label>
+            Driver allowance (Rs./day)
+            <input
+              type="number"
+              step="any"
+              value={effectiveDriverAllowance}
+              placeholder={blank(s.driver) ? 'Enter allowance' : `Vehicle default: ${s.driver}`}
+              onChange={set('driverAllowance')}
+            />
+            {!blank(s.driver) && blank(L.driverAllowance) &&
+              <span className="small muted">Using vehicle default: Rs.{fmt(s.driver)} per day</span>}
+          </label>
+        )}
         <div style={{ paddingBottom: 6 }}>
           {tripDays !== null
             ? <span className="small"><b>{tripDays}</b> day{tripDays !== 1 ? 's' : ''}</span>
@@ -188,7 +205,7 @@ export default function LineCard({ L, i, count, vehicles, settings, calc: r, onC
             &nbsp;→&nbsp; <b>Rs.{fmt(r.amount)}</b>
           </>
         ) : L.type === 'outstation' ? (
-          <>Billable km <b>{plain(r.billKm)}</b> (minimum {plain(r.minKm)}) x Rs.{fmt(s.outKm)} = Rs.{fmt(r.kmCharge)} &nbsp;+&nbsp; Driver allowance {r.days} x Rs.{fmt(s.driver)} = Rs.{fmt(r.driver)}</>
+          <>Billable km <b>{plain(r.billKm)}</b> (minimum {plain(r.minKm)}) x Rs.{fmt(s.outKm)} = Rs.{fmt(r.kmCharge)} &nbsp;+&nbsp; Driver allowance {r.days} x Rs.{fmt(r.driverRate)} = Rs.{fmt(r.driver)}</>
         ) : (
           <>
             Package Rs.{fmt(r.pkg)} &nbsp;+&nbsp; Extra time {r.extraHrs ? <><b>{plain(r.extraHrs)} hr</b> x Rs.{fmt(s.xHr)} = Rs.{fmt(r.extraHrCharge)}</> : 'none'}
