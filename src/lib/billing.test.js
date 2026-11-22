@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SETTINGS, DEFAULT_VEHICLES } from './defaults.js';
-import { applyLineChange, blankBill, calcBill, calcLine, makeSnap, rupeesInWords, stateHint } from './billing.js';
+import { applyLineChange, blankBill, calcBill, calcLine, formatTime12, makeSnap, parseTime12, rupeesInWords, stateHint } from './billing.js';
 import { invoiceModel, invoiceHTML } from './invoice.js';
 import { buildXlsx } from './xlsx.js';
 
@@ -86,6 +86,15 @@ test('typing start/end km and times fills km run and time run', () => {
   assert.equal(L.runT, '2:35');
 });
 
+test('time values convert between 24-hour storage and 12-hour display', () => {
+  assert.equal(formatTime12('00:05'), '12:05 AM');
+  assert.equal(formatTime12('12:30'), '12:30 PM');
+  assert.equal(formatTime12('21:20'), '9:20 PM');
+  assert.equal(parseTime12('12:05 AM'), '00:05');
+  assert.equal(parseTime12('12:30 PM'), '12:30');
+  assert.equal(parseTime12('9:20 PM'), '21:20');
+});
+
 test('amount in words', () => {
   assert.equal(rupeesInWords(4068), 'Rupees Four thousand and sixty eight only');
   assert.equal(rupeesInWords(123456), 'Rupees One lakh twenty three thousand four hundred and fifty six only');
@@ -103,6 +112,14 @@ test('invoice model, printed HTML and .xlsx are produced', async () => {
   const blob = buildXlsx(m);
   const head = new Uint8Array(await blob.arrayBuffer()).slice(0, 2);
   assert.equal(String.fromCharCode(head[0], head[1]), 'PK');
+});
+
+test('printed and Excel models show extra hour rate calculation', () => {
+  const b = blankBill(S, V);
+  b.lines = [line({ km: '100', runT: '9:20' })];
+  const m = invoiceModel(b, S);
+  assert.equal(m.prog[0].extraHrText, '2X250=500');
+  assert.match(invoiceHTML(m), />2X250=500</);
 });
 
 const sampleBill = (taxType) => {

@@ -42,6 +42,26 @@ export function parseRun(s) {
 }
 export const fmtRun = (min) => Math.floor(min / 60) + ':' + pad(min % 60);
 
+export function formatTime12(time) {
+  const parts = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!parts) return '';
+  const hour = Number(parts[1]);
+  const minute = Number(parts[2]);
+  if (hour > 23 || minute > 59) return '';
+  return `${hour % 12 || 12}:${pad(minute)} ${hour >= 12 ? 'PM' : 'AM'}`;
+}
+
+export function parseTime12(text) {
+  const match = String(text || '').trim().toUpperCase().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (!match) return '';
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 1 || hour > 12 || minute > 59) return '';
+  if (match[3] === 'AM') hour %= 12;
+  else hour = hour % 12 + 12;
+  return `${pad(hour)}:${pad(minute)}`;
+}
+
 export function calcLine(L, S) {
   const s = L.snap || {};
   const r = { kind: L.type, pkg: 0, runMin: 0, extraHrs: 0, extraHrCharge: 0, extraKm: 0, extraKmCharge: 0, amount: 0, hills: 0, usingDayRent: false };

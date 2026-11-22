@@ -116,7 +116,7 @@ export function buildXlsx(m) {
   heights[r] = 30; r++;
   const progFirst = r;
   m.prog.forEach((p) => {
-    put(r, 1, p.dateText, 4); put(r, 2, p.label, 4); put(r, 3, p.pkg, 7); put(r, 4, p.extraHr, 7); put(r, 5, p.extraKmText, 4); put(r, 6, p.amount, 8);
+    put(r, 1, p.dateText, 4); put(r, 2, p.label, 4); put(r, 3, p.pkg, 7); put(r, 4, p.extraHrText, 4); put(r, 5, p.extraKmText, 4); put(r, 6, p.amount, 8);
     heights[r] = 28; r++;
   });
   const progLast = r - 1;

@@ -1,5 +1,59 @@
 import { lineWarnings, tripName, KINDS } from '../lib/billing.js';
 import { blank, fmt, fmtDate, num, plain } from '../lib/util.js';
+import { pad } from '../lib/util.js';
+
+const MINUTES = Array.from({ length: 60 }, (_, minute) => pad(minute));
+
+function TwelveHourTime({ value, onChange }) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+  const hour24 = match ? Number(match[1]) : null;
+  const minute = match ? match[2] : '';
+  const hour12 = hour24 == null ? '' : String(hour24 % 12 || 12);
+  const period = hour24 != null && hour24 >= 12 ? 'PM' : 'AM';
+
+  const setTime = (nextHour, nextMinute, nextPeriod) => {
+    if (!nextHour) {
+      onChange('');
+      return;
+    }
+    const hour = (Number(nextHour) % 12) + (nextPeriod === 'PM' ? 12 : 0);
+    onChange(`${pad(hour)}:${nextMinute || '00'}`);
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      <select
+        aria-label="Hour"
+        value={hour12}
+        onChange={(e) => setTime(e.target.value, minute, period)}
+        style={{ width: 58 }}
+      >
+        <option value="">Hour</option>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) =>
+          <option key={hour} value={String(hour)}>{hour}</option>
+        )}
+      </select>
+      <select
+        aria-label="Minute"
+        value={minute}
+        onChange={(e) => setTime(hour12, e.target.value, period)}
+        style={{ width: 62 }}
+      >
+        <option value="">Min</option>
+        {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
+      </select>
+      <select
+        aria-label="AM or PM"
+        value={period}
+        onChange={(e) => setTime(hour12, minute, e.target.value)}
+        style={{ width: 58 }}
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+}
 
 export default function LineCard({ L, i, count, vehicles, settings, calc: r, onChange, onRemove }) {
   const tt = settings.tripTypes;
@@ -116,8 +170,8 @@ export default function LineCard({ L, i, count, vehicles, settings, calc: r, onC
             <label>Days<input type="number" min="1" value={L.days} onChange={set('days')} /></label>
           ) : (
             <>
-              <label>Start time<input type="time" value={L.startT} onChange={set('startT')} /></label>
-              <label>End time<input type="time" value={L.endT} onChange={set('endT')} /></label>
+              <label>Start time<TwelveHourTime value={L.startT} onChange={(value) => onChange('startT', value)} /></label>
+              <label>End time<TwelveHourTime value={L.endT} onChange={(value) => onChange('endT', value)} /></label>
               <label>Time run (h:mm)<input value={L.runT} onChange={set('runT')} placeholder="e.g. 9:20" /></label>
             </>
           )}

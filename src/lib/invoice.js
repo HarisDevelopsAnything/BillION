@@ -37,12 +37,18 @@ export function invoiceModel(b, S) {
       prog.push({
         dateText,
         label: 'DAY RENT — ' + r.dayRentDays + ' day' + (r.dayRentDays !== 1 ? 's' : '') + ' × Rs.' + fmt(r.dayRentRate),
+        extraHrText: '',
         extraKmText: 'FUEL COST = Rs.' + fmt(r.fuelCost),
-        pkg: r.dayRentCharge, extraHr: 0, amount: r.amount,
+        pkg: r.dayRentCharge, extraHr: 0, extraHrCharge: 0, amount: r.amount,
       });
     } else {
       prog.push({
-        dateText, label: S.tripTypes[L.type].label, pkg: r.pkg, extraHr: r.extraHrCharge,
+        dateText,
+        label: S.tripTypes[L.type].label,
+        pkg: r.pkg,
+        extraHr: r.extraHrCharge,
+        extraHrText: r.extraHrs > 0 ? plain(r.extraHrs) + 'X' + plain(s.xHr) + '=' + plain(r.extraHrCharge) : '',
+        extraHrCharge: r.extraHrCharge,
         extraKmText: r.extraKm > 0 ? plain(r.extraKm) + 'X' + plain(s.xKm) + '=' + plain(r.extraKmCharge) : '',
         amount: r.amount,
       });
@@ -92,7 +98,7 @@ export function invoiceHTML(m) {
   h += '<tr><th colspan="5">Description</th><th>Bill amount</th></tr>';
   h += '<tr><th>Programme date / CAB DETAILS</th><th>Hours package</th><th>charges (Rs.)</th><th>CHARGES FOR EXTRA Hrs.</th><th>Extra kms.,</th><th></th></tr>';
   m.prog.forEach((p) => {
-    h += `<tr><td>${nl(p.dateText)}</td><td>${esc(p.label)}</td><td class="r">${fmt(p.pkg)}</td><td class="r">${fmt(p.extraHr)}</td><td>${esc(p.extraKmText)}</td><td class="r b">${fmt(p.amount)}</td></tr>`;
+    h += `<tr><td>${nl(p.dateText)}</td><td>${esc(p.label)}</td><td class="r">${fmt(p.pkg)}</td><td>${esc(p.extraHrText)}</td><td>${esc(p.extraKmText)}</td><td class="r b">${fmt(p.amount)}</td></tr>`;
   });
   if (m.out.length) {
     h += `<tr><th>Programme date</th><th>Out station (for ${esc(m.outKmPerDay)} kms. per day)</th><th>Charges per km. (Rs.)</th><th>Charges (Rs.)</th><th>Driver allowance (Rs.)</th><th>Bill amount</th></tr>`;
