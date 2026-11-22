@@ -209,8 +209,9 @@ function Main({ session }) {
         title="Attachments made easier"
         summary="Bills and supporting documents can now be downloaded together."
         features={[
-          'Download a saved bill and its ZIP attachment together',
-          'Save a new bill and download its Excel bill plus attachment as one ZIP',
+          'Download a saved bill and its PDF or ZIP attachment together',
+          'Save a new bill and download its Excel bill plus PDF or ZIP as one ZIP',
+          'Attach PDF trip sheets, toll receipts, or supporting documents',
           'Range downloads include attachments in separate invoice folders',
           'Clearer attachment storage setup and error messages',
         ]}

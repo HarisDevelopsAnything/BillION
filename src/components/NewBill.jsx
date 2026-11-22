@@ -10,10 +10,15 @@ import SaveSuccess from './SaveSuccess.jsx';
 
 export default function NewBill({ initial, data, actions, toast, onPrint, onNew }) {
   const { settings, vehicles, clients, bills } = data;
-  const [bill, setBill] = useState(() => (initial ? clone(initial) : blankBill(settings, vehicles)));
+  const [bill, setBill] = useState(() => {
+    if (!initial) return blankBill(settings, vehicles);
+    const restored = clone(initial);
+    restored.attachmentUrl = restored.attachmentUrl || restored.data?.attachmentUrl || '';
+    return restored;
+  });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(initial ? `Editing saved bill ${initial.invoiceNo}.` : '');
-  const [zipFile, setZipFile] = useState(null);
+  const [attachmentFile, setAttachmentFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(null);
   const lastFill = useRef(null);
@@ -42,16 +47,21 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
     if (window.confirm(`Remove trip ${i + 1}?`)) setBill((b) => ({ ...b, lines: b.lines.filter((_, j) => j !== i) }));
   };
 
-  async function uploadZip(billId) {
-    if (!zipFile) return bill.attachmentUrl || '';
+  async function uploadAttachment(billId) {
+    if (!attachmentFile) return bill.attachmentUrl || '';
     setUploading(true);
     try {
       if (!supabase) throw new Error('Supabase is not configured.');
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData?.user) throw new Error('You must be signed in to upload an attachment.');
-      const ext = zipFile.name.split('.').pop();
+      const ext = attachmentFile.name.split('.').pop().toLowerCase();
+      if (!['zip', 'pdf'].includes(ext)) throw new Error('Only ZIP and PDF attachments are supported.');
       const path = `${authData.user.id}/${billId}.${ext}`;
-      const { error } = await supabase.storage.from('bill-attachments').upload(path, zipFile, { upsert: true });
+      const contentType = ext === 'pdf' ? 'application/pdf' : 'application/zip';
+      const { error } = await supabase.storage.from('bill-attachments').upload(path, attachmentFile, {
+        upsert: true,
+        contentType,
+      });
       if (error) {
         if (/bucket.*not found/i.test(error.message)) {
           throw new Error('Attachment storage bucket is missing. Run supabase/schema.sql in the Supabase SQL Editor, then try again.');
@@ -73,14 +83,14 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
     setBusy(true);
     try {
       const savedFirst = await actions.saveBill(bill);
-      if (zipFile) {
-        const attachmentUrl = await uploadZip(savedFirst.id);
+      if (attachmentFile) {
+        const attachmentUrl = await uploadAttachment(savedFirst.id);
         const updated = await actions.saveBill({ ...savedFirst, attachmentUrl });
         setBill(clone(updated));
         const t = new Date();
         setMsg(`Saved invoice ${updated.invoiceNo} at ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}.`);
         toast(`Saved invoice ${updated.invoiceNo}`);
-        setZipFile(null);
+        setAttachmentFile(null);
         setSaveSuccess(updated.invoiceNo);
         return updated;
       }
@@ -173,24 +183,26 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
             <label>Places of visit<input value={bill.places} onChange={setField('places')} placeholder="e.g. Madurai Airport Transfer" /></label>
             <label>Engaged from (optional)<input value={bill.engaged} onChange={setField('engaged')} placeholder="auto from trip dates" /></label>
           </div>
-          {/* Zip attachment */}
+          {/* File attachment */}
           <div style={{ marginTop: 12 }}>
             <label style={{ display: 'block' }}>
-              Attach trip sheets / tolls / misc bills (ZIP, optional)
+              Attach trip sheets / tolls / misc bills (PDF or ZIP, optional)
               <input
                 type="file"
-                accept=".zip,application/zip,application/x-zip-compressed"
+                accept=".pdf,application/pdf,.zip,application/zip,application/x-zip-compressed"
                 style={{ display: 'block', marginTop: 4 }}
-                onChange={(e) => setZipFile(e.target.files[0] || null)}
+                onChange={(e) => setAttachmentFile(e.target.files[0] || null)}
               />
             </label>
-            {bill.attachmentUrl && !zipFile && (
+            {bill.attachmentUrl && !attachmentFile && (
               <div className="small" style={{ marginTop: 4 }}>
-                Current attachment: <a href={bill.attachmentUrl} target="_blank" rel="noreferrer">Download ZIP</a>
+                Current attachment: <a href={bill.attachmentUrl} target="_blank" rel="noreferrer">
+                  Download {bill.attachmentUrl.toLowerCase().endsWith('.pdf') ? 'PDF' : 'attachment'}
+                </a>
                 {' '}<button className="link danger small" type="button" onClick={() => setBill((b) => ({ ...b, attachmentUrl: '' }))}>Remove</button>
               </div>
             )}
-            {zipFile && <div className="small muted" style={{ marginTop: 4 }}>Selected: {zipFile.name} — will be uploaded on save.</div>}
+            {attachmentFile && <div className="small muted" style={{ marginTop: 4 }}>Selected: {attachmentFile.name} — will be uploaded on save.</div>}
           </div>
         </div>
 
@@ -222,7 +234,7 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
           <div className="row">
             <button className="btn primary" type="button" disabled={busy || uploading} onClick={save}>Save bill</button>
             <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndExcel}>Save + Excel</button>
-            {(zipFile || bill.attachmentUrl) && (
+            {(attachmentFile || bill.attachmentUrl) && (
               <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndZip}>Save + ZIP</button>
             )}
             <button className="btn" type="button" disabled={busy || uploading} onClick={saveAndPrint}>Save + Print / PDF</button>

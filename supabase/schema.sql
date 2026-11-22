@@ -80,7 +80,7 @@ alter table public.vehicles add column if not exists day_rent numeric;
 alter table public.vehicles add column if not exists fuel_cost_per_km numeric;
 
 -- ============================================================
--- Storage bucket for ZIP attachments
+-- Storage bucket for PDF and ZIP attachments
 -- ============================================================
 -- 1. Create the bucket. It is public because the app stores getPublicUrl()
 --    URLs for saved attachments. Rerunning this migration also repairs a
@@ -91,7 +91,7 @@ values (
   'bill-attachments',
   true,
   52428800,                     -- 50 MB max per file
-  array['application/zip', 'application/x-zip-compressed', 'application/octet-stream']
+  array['application/pdf', 'application/zip', 'application/x-zip-compressed', 'application/octet-stream']
 )
 on conflict (id) do update set
   name = excluded.name,

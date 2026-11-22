@@ -19,16 +19,20 @@ const vehToRow = (v) => {
 };
 
 /* ---------- bill row <-> object ---------- */
-const billFromRow = (r) => ({
-  ...r.data,
-  id: r.id,
-  grandTotal: Number(r.grand_total),
-  attachmentUrl: r.attachment_url || r.data?.attachmentUrl || '',
-});
-const billToRow = (b, grand) => {
+export const billFromRow = (r) => {
+  const data = r.data && typeof r.data === 'object' ? r.data : {};
+  return {
+    ...data,
+    id: r.id,
+    grandTotal: Number(r.grand_total),
+    attachmentUrl: r.attachment_url || data.attachmentUrl || '',
+  };
+};
+const billToRow = (b, grand, userId) => {
   const data = { ...b };
   delete data.id; delete data.grandTotal;
   return {
+    user_id: userId,
     invoice_no: String(b.invoiceNo),
     bill_date: b.date || null,
     client_name: (b.client && b.client.name) || '',
@@ -112,11 +116,11 @@ export async function deleteClient(id) {
 }
 
 export async function saveBillRow(userId, bill, grand) {
-  const body = billToRow(bill, grand);
+  const body = billToRow(bill, grand, userId);
   if (bill.id) {
     return billFromRow(must(await supabase.from('bills').update({ ...body, updated_at: new Date().toISOString() }).eq('id', bill.id).select().single()));
   }
-  return billFromRow(must(await supabase.from('bills').insert({ ...body, user_id: userId }).select().single()));
+  return billFromRow(must(await supabase.from('bills').insert(body).select().single()));
 }
 export async function deleteBill(id) {
   must(await supabase.from('bills').delete().eq('id', id));

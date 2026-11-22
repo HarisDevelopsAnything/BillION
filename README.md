@@ -6,7 +6,7 @@ Login, clients, past bills, vehicle types and rates are stored in Supabase.
 ## Supabase setup
 
 Run [supabase/schema.sql](supabase/schema.sql) once in the Supabase SQL Editor for a new database, or rerun it after updating attachment storage.
-The script creates the `bill-attachments` public Storage bucket and required storage policies. If ZIP upload reports **Bucket not found**, the script has not been run on the active Supabase project.
+The script creates the `bill-attachments` public Storage bucket and required storage policies for PDF and ZIP uploads. If attachment upload reports **Bucket not found**, the script has not been run on the active Supabase project.
 
 ## How to update the release changelog
 
