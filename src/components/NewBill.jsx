@@ -47,8 +47,10 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
     setUploading(true);
     try {
       if (!supabase) throw new Error('Supabase is not configured.');
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) throw new Error('You must be signed in to upload an attachment.');
       const ext = zipFile.name.split('.').pop();
-      const path = `bill-attachments/${billId}.${ext}`;
+      const path = `${authData.user.id}/${billId}.${ext}`;
       const { error } = await supabase.storage.from('bill-attachments').upload(path, zipFile, { upsert: true });
       if (error) {
         if (/bucket.*not found/i.test(error.message)) {

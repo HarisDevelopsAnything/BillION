@@ -19,11 +19,23 @@ const vehToRow = (v) => {
 };
 
 /* ---------- bill row <-> object ---------- */
-const billFromRow = (r) => ({ ...r.data, id: r.id, grandTotal: Number(r.grand_total) });
+const billFromRow = (r) => ({
+  ...r.data,
+  id: r.id,
+  grandTotal: Number(r.grand_total),
+  attachmentUrl: r.attachment_url || r.data?.attachmentUrl || '',
+});
 const billToRow = (b, grand) => {
   const data = { ...b };
   delete data.id; delete data.grandTotal;
-  return { invoice_no: String(b.invoiceNo), bill_date: b.date || null, client_name: (b.client && b.client.name) || '', grand_total: grand, data };
+  return {
+    invoice_no: String(b.invoiceNo),
+    bill_date: b.date || null,
+    client_name: (b.client && b.client.name) || '',
+    grand_total: grand,
+    attachment_url: b.attachmentUrl || '',
+    data,
+  };
 };
 
 const must = (res) => { if (res.error) throw new Error(res.error.message || 'Database error'); return res.data; };
@@ -62,7 +74,7 @@ export function loadAll(userId) {
       // first login ever: create the settings row and the starter vehicle list
       must(await supabase.from('settings').upsert({ user_id: userId, data: settings }));
       if (!vehicleRows.length) {
-        const rows = DEFAULT_VEHICLES.map((veh, i) => ({ ...vehToRow(veh), sort: i + 1 }));
+        const rows = DEFAULT_VEHICLES.map((veh, i) => ({ ...vehToRow(veh), user_id: userId, sort: i + 1 }));
         vehicleRows = must(await supabase.from('vehicles').insert(rows).select());
         vehicleRows.sort((a, z) => a.sort - z.sort);
       }
@@ -78,8 +90,8 @@ export async function saveSettings(userId, settings) {
   must(await supabase.from('settings').upsert({ user_id: userId, data: settings, updated_at: new Date().toISOString() }));
 }
 
-export async function insertVehicle(v, sort) {
-  return vehFromRow(must(await supabase.from('vehicles').insert({ ...vehToRow(v), sort }).select().single()));
+export async function insertVehicle(userId, v, sort) {
+  return vehFromRow(must(await supabase.from('vehicles').insert({ ...vehToRow(v), user_id: userId, sort }).select().single()));
 }
 export async function updateVehicle(v) {
   must(await supabase.from('vehicles').update(vehToRow(v)).eq('id', v.id));
@@ -88,8 +100,8 @@ export async function deleteVehicle(id) {
   must(await supabase.from('vehicles').delete().eq('id', id));
 }
 
-export async function insertClient(c) {
-  const r = must(await supabase.from('clients').insert({ name: c.name, address: c.address || '', gstin: c.gstin || '' }).select().single());
+export async function insertClient(userId, c) {
+  const r = must(await supabase.from('clients').insert({ user_id: userId, name: c.name, address: c.address || '', gstin: c.gstin || '' }).select().single());
   return { id: r.id, name: r.name, address: r.address || '', gstin: r.gstin || '' };
 }
 export async function updateClient(id, patch) {
@@ -99,12 +111,12 @@ export async function deleteClient(id) {
   must(await supabase.from('clients').delete().eq('id', id));
 }
 
-export async function saveBillRow(bill, grand) {
+export async function saveBillRow(userId, bill, grand) {
   const body = billToRow(bill, grand);
   if (bill.id) {
     return billFromRow(must(await supabase.from('bills').update({ ...body, updated_at: new Date().toISOString() }).eq('id', bill.id).select().single()));
   }
-  return billFromRow(must(await supabase.from('bills').insert(body).select().single()));
+  return billFromRow(must(await supabase.from('bills').insert({ ...body, user_id: userId }).select().single()));
 }
 export async function deleteBill(id) {
   must(await supabase.from('bills').delete().eq('id', id));

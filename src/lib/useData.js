@@ -35,7 +35,7 @@ export function useData(userId) {
 
     async addVehicle() {
       const sort = ref.current.vehicles.length + 1;
-      const v = await db.insertVehicle({ name: 'NEW VEHICLE' }, sort);
+      const v = await db.insertVehicle(userId, { name: 'NEW VEHICLE' }, sort);
       patch((s) => ({ vehicles: [...s.vehicles, v] }));
     },
     async updateVehicle(v) {
@@ -48,7 +48,7 @@ export function useData(userId) {
     },
 
     async addClient() {
-      const c = await db.insertClient({ name: 'New client', address: '', gstin: '' });
+      const c = await db.insertClient(userId, { name: 'New client', address: '', gstin: '' });
       patch((s) => ({ clients: [...s.clients, c].sort(byName) }));
     },
     async updateClient(id, fields) {
@@ -72,10 +72,10 @@ export function useData(userId) {
         if (cl.gstin && cl.gstin !== found.gstin) fields.gstin = cl.gstin;
         if (Object.keys(fields).length) await actions.updateClient(found.id, fields);
       } else {
-        const c = await db.insertClient(cl);
+        const c = await db.insertClient(userId, cl);
         patch((s) => ({ clients: [...s.clients, c].sort(byName) }));
       }
-      const saved = await db.saveBillRow({ ...bill, client: { ...bill.client, name: cl.name } }, grand);
+      const saved = await db.saveBillRow(userId, { ...bill, client: { ...bill.client, name: cl.name } }, grand);
       patch((s) => ({ bills: [saved, ...s.bills.filter((b) => b.id !== saved.id)] }));
       const n = parseInt(bill.invoiceNo, 10);
       if (!isNaN(n) && n >= num(S.nextInvoice)) await actions.saveSettings({ ...ref.current.settings, nextInvoice: n + 1 });

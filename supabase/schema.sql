@@ -100,7 +100,7 @@ on conflict (id) do update set
   allowed_mime_types = excluded.allowed_mime_types;
 
 -- 2. RLS policies on storage objects so each user can only touch their own files.
---    Files are stored as "bill-attachments/<uuid>.<ext>".
+--    Files are stored as "<authenticated-user-id>/<bill-id>.<ext>".
 
 drop policy if exists "auth upload attachment"  on storage.objects;
 drop policy if exists "auth read attachment"    on storage.objects;
@@ -108,12 +108,29 @@ drop policy if exists "auth delete attachment"  on storage.objects;
 
 create policy "auth upload attachment"
   on storage.objects for insert to authenticated
-  with check (bucket_id = 'bill-attachments' and auth.uid() is not null);
+  with check (
+    bucket_id = 'bill-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 create policy "auth read attachment"
   on storage.objects for select to authenticated
-  using (bucket_id = 'bill-attachments' and auth.uid() is not null);
+  using (
+    bucket_id = 'bill-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 create policy "auth delete attachment"
   on storage.objects for delete to authenticated
-  using (bucket_id = 'bill-attachments' and auth.uid() is not null);
+  using (
+    bucket_id = 'bill-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- Supabase hosts normally grant these automatically, but explicit grants make
+-- rerunning this schema safe after a project was created with restricted defaults.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.settings to authenticated;
+grant select, insert, update, delete on public.vehicles to authenticated;
+grant select, insert, update, delete on public.clients to authenticated;
+grant select, insert, update, delete on public.bills to authenticated;
