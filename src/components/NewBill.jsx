@@ -58,6 +58,14 @@ export default function NewBill({ initial, data, actions, toast, onPrint, onNew 
       if (!['zip', 'pdf'].includes(ext)) throw new Error('Only ZIP and PDF attachments are supported.');
       const path = `${authData.user.id}/${billId}.${ext}`;
       const contentType = ext === 'pdf' ? 'application/pdf' : 'application/zip';
+
+      // Remove the other supported attachment type for this bill so a PDF/ZIP
+      // replacement never leaves stale files or an implicit upsert path.
+      await Promise.all(['pdf', 'zip'].map(async (otherExt) => {
+        if (otherExt === ext) return;
+        await supabase.storage.from('bill-attachments').remove([`${authData.user.id}/${billId}.${otherExt}`]);
+      }));
+
       const { error } = await supabase.storage.from('bill-attachments').upload(path, attachmentFile, {
         upsert: true,
         contentType,

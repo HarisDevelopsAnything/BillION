@@ -105,6 +105,7 @@ on conflict (id) do update set
 drop policy if exists "auth upload attachment"  on storage.objects;
 drop policy if exists "auth read attachment"    on storage.objects;
 drop policy if exists "auth delete attachment"  on storage.objects;
+drop policy if exists "auth update attachment"  on storage.objects;
 
 create policy "auth upload attachment"
   on storage.objects for insert to authenticated
@@ -123,6 +124,17 @@ create policy "auth read attachment"
 create policy "auth delete attachment"
   on storage.objects for delete to authenticated
   using (
+    bucket_id = 'bill-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "auth update attachment"
+  on storage.objects for update to authenticated
+  using (
+    bucket_id = 'bill-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
     bucket_id = 'bill-attachments'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
